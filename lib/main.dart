@@ -2,12 +2,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:movieapp/movie.dart';
+import 'package:movieapp/movie_service.dart';
 
 void main() {
   runApp(const MovieApp());
 }
-
-const api_key = "432edc9ce055453555ec06b7273e5169";
 
 class MovieApp extends StatelessWidget {
   const MovieApp({super.key});
@@ -30,14 +30,10 @@ class MovieList extends StatefulWidget {
 }
 
 class _MovieListState extends State<MovieList> {
-  Future getMovies() async {
-    final res = await http.get(
-      Uri.parse(
-        "https://api.themoviedb.org/3/movie/popular?api_key=$api_key&language=en-US&page=1",
-      ),
-    );
+  Future<List<Movie>> getMovies() async {
+    final service = MovieService();
 
-    return jsonDecode(res.body)['results'];
+    return service.getMovies();
   }
 
   @override
@@ -55,6 +51,12 @@ class _MovieListState extends State<MovieList> {
               );
             }
 
+            if (snapshot.data == null) {
+              return const Center(
+                child: Text('No data'),
+              );
+            }
+
             print(snapshot.data);
 
             return GridView(
@@ -64,13 +66,13 @@ class _MovieListState extends State<MovieList> {
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
               ),
-              children: snapshot.data.map<Widget>((movie) {
+              children: snapshot.data!.map<Widget>((movie) {
                 return InkWell(
                   child: SizedBox(
                     child: Stack(
                       children: [
                         Image.network(
-                          "https://image.tmdb.org/t/p/w400${movie['poster_path']}",
+                          "https://image.tmdb.org/t/p/w400${movie.posterUrl}",
                         ),
                         Align(
                           alignment: Alignment.bottomLeft,
@@ -96,7 +98,7 @@ class _MovieListState extends State<MovieList> {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        movie['title'],
+                                        movie.title,
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleLarge
@@ -108,7 +110,7 @@ class _MovieListState extends State<MovieList> {
                                     const Icon(Icons.star),
                                     const SizedBox(width: 8),
                                     Text(
-                                      movie['vote_average'].toString(),
+                                      movie.rating.toString(),
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -119,7 +121,7 @@ class _MovieListState extends State<MovieList> {
                                   height: 8,
                                 ),
                                 Text(
-                                  movie['overview'],
+                                  movie.description,
                                   maxLines: 3,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -134,10 +136,7 @@ class _MovieListState extends State<MovieList> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => MovieDetails(
-                        title: movie['title'],
-                        description: movie['overview'],
-                        imageUrl: movie['poster_path'],
-                        rating: movie['vote_average'],
+                        movie: movie,
                       ),
                     ),
                   ),
@@ -150,16 +149,10 @@ class _MovieListState extends State<MovieList> {
 }
 
 class MovieDetails extends StatefulWidget {
-  final String title;
-  final String description;
-  final String imageUrl;
-  final double rating;
+  final Movie movie;
   const MovieDetails({
     Key? key,
-    required this.title,
-    required this.description,
-    required this.imageUrl,
-    this.rating = 0,
+    required this.movie,
   }) : super(key: key);
 
   @override
@@ -180,7 +173,7 @@ class _MovieDetailsState extends State<MovieDetails> {
           AspectRatio(
             aspectRatio: 2 / 3,
             child: Image.network(
-              'https://image.tmdb.org/t/p/w400${widget.imageUrl}',
+              'https://image.tmdb.org/t/p/w400${widget.movie.posterUrl}',
             ),
           ),
           Expanded(
@@ -191,7 +184,7 @@ class _MovieDetailsState extends State<MovieDetails> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.title,
+                    widget.movie.title,
                     style: Theme.of(context)
                         .textTheme
                         .displayMedium
@@ -216,7 +209,7 @@ class _MovieDetailsState extends State<MovieDetails> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          widget.rating.toString(),
+                          widget.movie.rating.toString(),
                           style: TextStyle(
                             color: Colors.yellow.shade700,
                             fontWeight: FontWeight.bold,
@@ -233,7 +226,7 @@ class _MovieDetailsState extends State<MovieDetails> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    widget.description,
+                    widget.movie.description,
                   ),
                 ],
               ),
